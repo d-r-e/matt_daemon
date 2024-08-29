@@ -2,7 +2,7 @@
 
 NAME = matt_daemon
 
-SRC = main.cpp
+SRC = main.cpp Daemon.cpp
 
 OBJ = $(SRC:.cpp=.o)
 

@@ -1,6 +1,9 @@
 #include <iostream>
 #include <string>
+#include "Daemon.hpp"
 
 int main() {
-    std::cout << "Hello, World!" << std::endl;
+    Daemon d;
+    std::cout << "Daemon PID: " << d.getPid() << std::endl;
+    return 0;
 }

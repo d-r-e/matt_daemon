@@ -15,6 +15,6 @@ public:
 private:
     unsigned int pid;
 
-}
+};
 
 #endif // DAEMON_HPP
