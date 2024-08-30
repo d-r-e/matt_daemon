@@ -1,21 +1,19 @@
-## conventional makefile for binary matt_daemon with all, name, re, fclean, clean rules
+NAME = Matt_daemon
 
-NAME = matt_daemon
-
-SRC = main.cpp Daemon.cpp
-
+SRC = main.cpp Daemon.cpp TintinReporter.cpp
+HEADER = main.hpp Daemon.hpp TintinReporter.hpp 
 OBJ = $(SRC:.cpp=.o)
 
 CXX = clang++
 
-CXXFLAGS = -Wall -Wextra -Werror -O2 -std=c++98
+CXXFLAGS = -Wall -Wextra -Werror -O2 -g3 -std=c++17
 
 all: $(NAME)
 
 $(NAME): $(OBJ)
 	$(CXX) $(CXXFLAGS) $(OBJ) -o $(NAME)
 
-%.o: %.cpp
+%.o: %.cpp $(HEADER)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:

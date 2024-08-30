@@ -14,7 +14,6 @@ public:
     TintinReporter& operator=(const TintinReporter&);
 
     void log(const std::string &message);
-    void log(const std::string &message, const std::string &file);
 
 private:
     std::string log_file;

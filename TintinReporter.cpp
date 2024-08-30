@@ -4,6 +4,7 @@ TintinReporter::TintinReporter() : log_file("/var/log/matt_daemon/matt_daemon.lo
 {
     std::filesystem::create_directories("/var/log/matt_daemon");
     open_log_file();
+    log("Daemon started."); 
 }
 
 TintinReporter::~TintinReporter()
@@ -47,15 +48,10 @@ void TintinReporter::log(const std::string &message)
 {
     if (log_stream.is_open())
     {
-        log_stream << message << std::endl;
-    }
-}
+        std::time_t t = std::time(0);
+        std::tm* localtime = std::localtime(&t);
+        log_stream << std::put_time(localtime, "[%d/%m/%Y - %H:%M:%S] ") << message << std::endl;
 
-void TintinReporter::log(const std::string &message, const std::string &file)
-{
-    if (log_stream.is_open())
-    {
-        log_stream << file << ": " << message << std::endl;
     }
 }
 
