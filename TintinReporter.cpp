@@ -3,8 +3,12 @@
 TintinReporter::TintinReporter() : log_file("/var/log/matt_daemon/matt_daemon.log")
 {
     std::filesystem::create_directories("/var/log/matt_daemon");
+    if (!std::filesystem::exists("/var/log/matt_daemon"))
+    {
+        std::cerr << "Error: Could not create log directory /var/log/matt_daemon" << std::endl;
+        exit(1);
+    }
     open_log_file();
-    log("Daemon started."); 
 }
 
 TintinReporter::~TintinReporter()
@@ -29,7 +33,7 @@ TintinReporter &TintinReporter::operator=(const TintinReporter &other)
             log_stream.close();
         }
         log_file = other.log_file;
-        open_log_file();
+        this->open_log_file();
     }
     return *this;
 }
