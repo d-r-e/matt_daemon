@@ -30,6 +30,7 @@ public:
 private:
     unsigned int pid;
     TintinReporter reporter;
+    bool check_requirements();
     bool daemonize(void);
 };
 

@@ -3,6 +3,9 @@
 
 Daemon::Daemon() {
     pid = 0;
+    if (!this->check_requirements()) {
+        exit(1);
+    }
     if (!this->daemonize()) {
         std::cerr << "Error: Failed to daemonize." << std::endl;
         exit(1);
@@ -29,6 +32,14 @@ Daemon& Daemon::operator=(const Daemon& d) {
 
 unsigned int Daemon::getPid() {
     return pid;
+}
+
+bool Daemon::check_requirements(){
+    if (getuid() != 0 && geteuid() != 0) {
+        std::cerr << "You must be root to run this program." << std::endl;
+        return false;
+    }
+    return true;
 }
 
 bool Daemon::daemonize(void) {
