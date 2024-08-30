@@ -19,7 +19,7 @@ int is_port_in_use(int port) {
 }
 
 int validate_requirements(){
-    if (getuid() != 0) {
+    if (getuid() != 0 && geteuid() != 0) {
         std::cerr << "You must be root to run this program." << std::endl;
         return 1;
     }
