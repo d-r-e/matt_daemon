@@ -4,7 +4,9 @@
 #include "TintinReporter.hpp"
 #include <algorithm>
 #include <arpa/inet.h>
+#include <array>
 #include <cerrno>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
@@ -12,10 +14,12 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <memory>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <signal.h>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -25,6 +29,7 @@
 
 #define MAX_CLIENTS 3
 #define PORT 4242
+#define UNSAFE 1
 
 class Daemon {
   public:
@@ -45,12 +50,13 @@ class Daemon {
 
 	static Daemon *instance;
 
-	bool        check_requirements();
-	bool        daemonize(void);
-	static void handle_signal(int signal);
-	void        handle_client(int client_socket);
-	int         execute_command(const std::string &command);
-	void        close_sockets();
+	bool               check_requirements();
+	bool               daemonize(void);
+	static void        handle_signal(int signal);
+	void               handle_client(int client_socket);
+	int                execute_command(const std::string &command, int client_socket);
+	void               close_sockets();
+	static std::string tolower(std::string str);
 };
 
 #endif // DAEMON_HPP

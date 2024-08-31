@@ -82,6 +82,10 @@ void Daemon::close_sockets() {
 bool Daemon::daemonize(void) {
 	pid_t pid, sid;
 
+	if (getuid() != 0 && geteuid() != 0) {
+		std::cerr << "You must be root to run this program." << std::endl;
+		return false;
+	}
 	pid = fork();
 	if (pid < 0) {
 		std::cerr << "Fork failed: " << strerror(errno) << std::endl;
@@ -118,13 +122,13 @@ int Daemon::start_remote_shell() {
 	int                addrlen = sizeof(address);
 
 	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-		reporter.error("Socket creation failed: errno=" + std::to_string(errno) + " " + std::string(strerror(errno)));
+		reporter.error("Socket: " + std::string(strerror(errno)));
 		return -1;
 	}
 
 	int opt = 1;
 	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
-		reporter.error("setsockopt failed: " + std::string(strerror(errno)));
+		reporter.error("setsockopt: " + std::string(strerror(errno)));
 		close(server_fd);
 		return -1;
 	}
@@ -134,13 +138,13 @@ int Daemon::start_remote_shell() {
 	address.sin_port = htons(PORT);
 
 	if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
-		reporter.error("Bind failed: " + std::string(strerror(errno)));
+		reporter.error("Bind: " + std::string(strerror(errno)));
 		close(server_fd);
 		return -1;
 	}
 
 	if (listen(server_fd, MAX_CLIENTS) < 0) {
-		reporter.error("Listen failed: " + std::string(strerror(errno)));
+		reporter.error("Listen: " + std::string(strerror(errno)));
 		close(server_fd);
 		return -1;
 	}
@@ -168,13 +172,13 @@ int Daemon::start_remote_shell() {
 		int activity = select(max_sd + 1, &readfds, nullptr, nullptr, nullptr);
 
 		if ((activity < 0) && (errno != EINTR)) {
-			reporter.error("Select error: " + std::string(strerror(errno)));
+			reporter.error("Select: " + std::string(strerror(errno)));
 		}
 
 		if (FD_ISSET(server_fd, &readfds)) {
 			int new_socket;
 			if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
-				reporter.error("Accept failed: " + std::string(strerror(errno)));
+				reporter.error("Accept: " + std::string(strerror(errno)));
 				continue;
 			}
 
@@ -204,8 +208,9 @@ int Daemon::start_remote_shell() {
 }
 
 void Daemon::handle_client(int client_socket) {
-	char buffer[1024];
-	int  bytes_read;
+	char        buffer[1024];
+	int         bytes_read;
+	std::string cmd;
 
 	std::string prompt = "$ ";
 	send(client_socket, prompt.c_str(), prompt.size(), 0);
@@ -230,46 +235,86 @@ void Daemon::handle_client(int client_socket) {
 		}
 	} else {
 		buffer[bytes_read] = '\0';
-		reporter.log("Received command: " + std::string(buffer));
+		cmd = std::string(buffer);
+		// Remove trailing newline
+		cmd.erase(std::remove(cmd.begin(), cmd.end(), '\n'), cmd.end());
+		cmd.erase(std::remove(cmd.begin(), cmd.end(), '\r'), cmd.end());
+		if (Daemon::tolower(cmd) == "quit\r\n") {
+			reporter.debug("[" + std::to_string(client_socket) + "] Client requested to exit.");
+			close(client_socket);
+			for (int i = 0; i < MAX_CLIENTS; i++) {
+				if (client_fds[i] == client_socket) {
+					client_fds[i] = 0;
+					break;
+				}
+			}
+			return;
+		}
+		reporter.debug("[" + std::to_string(client_socket) + "] Received (" + std::to_string(bytes_read) + "): " + cmd);
 
-		int result = execute_command(std::string(buffer));
+		int result = execute_command(cmd, client_socket);
 
 		std::string response = "Command executed with result: " + std::to_string(result) + "\n";
 		send(client_socket, response.c_str(), response.size(), 0);
 		reporter.debug("Sent command result to client.");
 
 		send(client_socket, prompt.c_str(), prompt.size(), 0);
-		reporter.debug("Sent prompt to client again.");
 	}
 }
 
-int Daemon::execute_command(const std::string &command) {
-	std::string cmd = command;
-	std::string result;
-	int         status;
-	FILE       *pipe;
+std::string Daemon::tolower(std::string str) {
+	std::transform(str.begin(), str.end(), str.begin(), ::tolower);
+	return str;
+}
 
-	if (cmd.back() == '\n') 
-		cmd.pop_back();
-	if (cmd == "exit")
-		return 0;
-	pipe = popen(cmd.c_str(), "r");
-	if (!pipe) {
-		reporter.error("Failed to execute command: " + cmd);
+int Daemon::execute_command(const std::string &command, int client_socket) {
+	std::string           sanitized_command;
+	std::array<char, 128> buffer;
+	std::string           result;
+
+	
+	if (command.empty()) {
+		reporter.error("Empty command received.");
 		return -1;
 	}
-	char buffer[128];
-	while (!feof(pipe)) {
-		if (fgets(buffer, 128, pipe) != nullptr) {
-			result += buffer;
+
+	for (const char &ch : command) {
+		if (std::isalnum(ch) || std::isspace(ch) || ch == '.' || ch == '-' || ch == '/' || ch == '_') {
+			sanitized_command += ch;
+		} else if (UNSAFE) {
+			sanitized_command += ch;
+		} else {
+			reporter.error("Invalid character detected in command: " + std::string(1, ch));
+			return -1;
 		}
 	}
-	status = pclose(pipe);
-	if (status == -1) {
-		reporter.error("Failed to close pipe.");
+	sanitized_command = "/bin/sh -c \"" + sanitized_command + "\"";
+
+	if (sanitized_command.empty()) {
+		reporter.error("Sanitized command is empty, nothing to execute.");
 		return -1;
 	}
-	reporter.log("Command executed: " + cmd);
-	reporter.log("Command result: " + result);
-	return status;
+
+	sanitized_command += " 2>&1";
+
+	std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(sanitized_command.c_str(), "r"), pclose);
+
+	if (!pipe) {
+		reporter.error("Failed to open pipe for command execution.");
+		return -1;
+	}
+
+	while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+		result += buffer.data();
+	}
+
+	int exit_code = WEXITSTATUS(pclose(pipe.release()));
+
+	if (exit_code != 0) {
+		reporter.error("Command execution failed with exit code " + std::to_string(exit_code) + ": " + result);
+		return exit_code;
+	}
+
+	reporter.debug("[" + std::to_string(client_socket) + "] Command executed successfully: " + result);
+	return exit_code;
 }
