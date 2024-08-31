@@ -1,31 +1,45 @@
 NAME = Matt_daemon
 
-SRC = src/main.cpp src/Daemon.cpp src/TintinReporter.cpp
-HEADER = src/main.hpp src/Daemon.hpp src/TintinReporter.hpp 
-OBJ = $(SRC:.cpp=.o)
+SRC_DIR = src
+INCLUDE_DIR = include
+BUILD_DIR = build
+BIN_DIR = bin
+
+SRC = $(SRC_DIR)/main.cpp $(SRC_DIR)/Daemon.cpp $(SRC_DIR)/TintinReporter.cpp
+HEADER = $(INCLUDE_DIR)/main.hpp $(INCLUDE_DIR)/Daemon.hpp $(INCLUDE_DIR)/TintinReporter.hpp
+OBJ = $(BUILD_DIR)/main.o $(BUILD_DIR)/Daemon.o $(BUILD_DIR)/TintinReporter.o
 
 CXX = clang++
+CXXFLAGS = -Wall -Wextra -Werror -O2 -I $(INCLUDE_DIR) -g3 -std=c++17
 
-CXXFLAGS = -Wall -Wextra -Werror -O2 -g3 -std=c++17
+all: $(BIN_DIR)/$(NAME)
 
-all: $(NAME)
+$(BIN_DIR)/$(NAME): $(OBJ)
+	@mkdir -p $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) $(OBJ) -o $@
 
-$(NAME): $(OBJ)
-	$(CXX) $(CXXFLAGS) $(OBJ) -o $(NAME)
+$(BUILD_DIR)/main.o: $(SRC_DIR)/main.cpp $(INCLUDE_DIR)/main.hpp $(HEADER)
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-%.o: %.cpp $(HEADER)
+$(BUILD_DIR)/Daemon.o: $(SRC_DIR)/Daemon.cpp $(INCLUDE_DIR)/Daemon.hpp $(HEADER)
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/TintinReporter.o: $(SRC_DIR)/TintinReporter.cpp $(INCLUDE_DIR)/TintinReporter.hpp $(HEADER)
+	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJ)
+	rm -rf $(BUILD_DIR)
 
 fclean: clean
-	rm -f $(NAME)
+	rm -rf $(BIN_DIR)
 
 re: fclean all
 
 x: all
-	./$(NAME)
+	./$(BIN_DIR)/$(NAME)
 
 kill:
 	kill -9 `ps aux | grep $(NAME) | grep -v grep | awk '{print $$2}'`
