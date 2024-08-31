@@ -43,7 +43,15 @@ void TintinReporter::open_log_file() {
 void TintinReporter::log(const std::string &message) {
 	if (log_stream.is_open()) {
 		std::time_t t = std::time(0);
-		std::tm *localtime = std::localtime(&t);
+		std::tm    *localtime = std::localtime(&t);
 		log_stream << std::put_time(localtime, "[%d/%m/%Y - %H:%M:%S] ") << message << std::endl;
+	}
+}
+
+void TintinReporter::error(const std::string &message) {
+	if (log_stream.is_open()) {
+		std::time_t t = std::time(0);
+		std::tm    *localtime = std::localtime(&t);
+		log_stream << std::put_time(localtime, "[%d/%m/%Y - %H:%M:%S][ERROR] ") << message << std::endl;
 	}
 }

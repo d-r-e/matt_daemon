@@ -10,3 +10,4 @@ SpaceAfterCStyleCast: false
 AllowShortFunctionsOnASingleLine: Inline
 ColumnLimit: 0
 IndentPPDirectives: AfterHash
+AlignConsecutiveDeclarations: true

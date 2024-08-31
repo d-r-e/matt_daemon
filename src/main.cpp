@@ -32,10 +32,12 @@ int validate_requirements() {
 
 int main() {
 	try {
-		if (validate_requirements())
-			return 1;
 
+		if (validate_requirements() != 0)
+			return 1;
 		Daemon d;
+        d.start_remote_shell();
+
 	} catch (std::filesystem::filesystem_error &e) {
 		std::cerr << "Filesystem Error: " << e.what() << " - Error code: " << e.code() << std::endl;
 		return 1;

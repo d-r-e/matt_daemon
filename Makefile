@@ -39,6 +39,7 @@ fclean: clean
 re: fclean all
 
 x: all
+	@pkill Matt_daemon || true
 	./$(BIN_DIR)/$(NAME)
 
 kill:

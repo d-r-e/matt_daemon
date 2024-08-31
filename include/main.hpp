@@ -1,10 +1,10 @@
-#include <iostream>
-#include <string>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
-#include <sys/types.h>
+#include <iostream>
+#include <netinet/in.h>
+#include <string>
+#include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "Daemon.hpp"
