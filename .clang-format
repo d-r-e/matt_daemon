@@ -1,0 +1,12 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: ForIndentation
+BreakBeforeBraces: Attach
+SpaceBeforeParens: ControlStatements
+SpaceAfterControlStatementKeyword: false
+SpacesInParentheses: false
+SpaceAfterCStyleCast: false
+AllowShortFunctionsOnASingleLine: Inline
+ColumnLimit: 0
+IndentPPDirectives: AfterHash
