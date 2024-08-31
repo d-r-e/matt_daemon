@@ -1,12 +1,12 @@
+
+#ifndef TINTIN_REPORTER_HPP
+#define TINTIN_REPORTER_HPP
+#define DEBUG 1
+
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
-
-#ifndef TINTIN_REPORTER_HPP
-#	define TINTIN_REPORTER_HPP
-
-# define DEBUG 1
 
 class TintinReporter {
   public:

@@ -2,7 +2,7 @@
 
 int is_port_in_use(int port) {
 	struct sockaddr_in sa;
-	int sock = socket(AF_INET, SOCK_STREAM, 0);
+	int                sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {
 		std::cerr << "Failed to create socket." << std::endl;
 		return 1;
@@ -36,7 +36,7 @@ int main() {
 		if (validate_requirements() != 0)
 			return 1;
 		Daemon d;
-        d.start_remote_shell();
+		d.start_remote_shell();
 
 	} catch (std::filesystem::filesystem_error &e) {
 		std::cerr << "Filesystem Error: " << e.what() << " - Error code: " << e.code() << std::endl;

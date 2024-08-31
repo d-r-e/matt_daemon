@@ -87,7 +87,7 @@ bool Daemon::daemonize(void) {
 		std::cerr << "Fork failed: " << strerror(errno) << std::endl;
 		return false;
 	}
-	if (pid > 0) 
+	if (pid > 0)
 		exit(EXIT_SUCCESS);
 	umask(0);
 	sid = setsid();
@@ -112,7 +112,6 @@ bool Daemon::daemonize(void) {
 	signal(SIGHUP, handle_signal);
 	return true;
 }
-
 
 int Daemon::start_remote_shell() {
 	struct sockaddr_in address;
@@ -248,16 +247,12 @@ int Daemon::execute_command(const std::string &command) {
 	std::string cmd = command;
 	std::string result;
 	int         status;
-	FILE       *pipe ;
-	
-	if (cmd.back() == '\n') {
-        cmd.pop_back();
-	}
+	FILE       *pipe;
 
-	if (cmd == "exit") {
+	if (cmd.back() == '\n') 
+		cmd.pop_back();
+	if (cmd == "exit")
 		return 0;
-	}
-
 	pipe = popen(cmd.c_str(), "r");
 	if (!pipe) {
 		reporter.error("Failed to execute command: " + cmd);
