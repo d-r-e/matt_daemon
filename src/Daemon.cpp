@@ -143,32 +143,26 @@ int Daemon::start_remote_shell() {
 		reporter.error("Socket: " + std::string(strerror(errno)));
 		return -1;
 	}
-
 	int opt = 1;
 	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
 		reporter.error("setsockopt: " + std::string(strerror(errno)));
 		close(server_fd);
 		return -1;
 	}
-
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = INADDR_ANY;
 	address.sin_port = htons(PORT);
-
 	if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
 		reporter.error("Bind: " + std::string(strerror(errno)));
 		close(server_fd);
 		return -1;
 	}
-
 	if (listen(server_fd, MAX_CLIENTS) < 0) {
 		reporter.error("Listen: " + std::string(strerror(errno)));
 		close(server_fd);
 		return -1;
 	}
-
 	reporter.info("Daemon listening on port " + std::to_string(PORT));
-
 	while (true) {
 		FD_ZERO(&readfds);
 		FD_SET(server_fd, &readfds);
@@ -193,18 +187,15 @@ int Daemon::start_remote_shell() {
 				reporter.error("Accept: " + std::string(strerror(errno)));
 				continue;
 			}
-
 			reporter.info("New connection, socket fd: " + std::to_string(new_socket) +
 			              ", ip: " + inet_ntoa(address.sin_addr) +
 			              ", port: " + std::to_string(ntohs(address.sin_port)));
-
 			for (int i = 0; i < MAX_CLIENTS + 1; ++i) {
 				if (client_fds[i] == 0) {
 					client_fds[i] = new_socket;
 					break;
 				}
 			}
-
 			if (get_client_count() > MAX_CLIENTS) {
 				std::string msg = "[ERROR] Max clients reached, connection closed.\n";
 				send(new_socket, msg.c_str(), msg.size(), 0);
@@ -216,18 +207,15 @@ int Daemon::start_remote_shell() {
 						break;
 					}
 				}
-			} else {
+			} else 
 				reporter.info("Client " + std::to_string(get_client_count()) + " connected.");
-			}
 		}
-
 		for (int i = 0; i < MAX_CLIENTS; ++i) {
 			int sd = client_fds[i];
 			if (FD_ISSET(sd, &readfds)) 
 				handle_client(sd);
 		}
 	}
-
 	close_sockets();
 	return 0;
 }
