@@ -1,7 +1,7 @@
 NAME = Matt_daemon
 
-SRC = main.cpp Daemon.cpp TintinReporter.cpp
-HEADER = main.hpp Daemon.hpp TintinReporter.hpp 
+SRC = src/main.cpp src/Daemon.cpp src/TintinReporter.cpp
+HEADER = src/main.hpp src/Daemon.hpp src/TintinReporter.hpp 
 OBJ = $(SRC:.cpp=.o)
 
 CXX = clang++
