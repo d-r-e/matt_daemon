@@ -43,12 +43,14 @@ class Daemon {
 	int            client_fds[MAX_CLIENTS];
 	fd_set         readfds;
 
-	bool        check_requirements();
-	bool        daemonize(void);
+	static Daemon *instance;
+
+	bool check_requirements();
+	bool daemonize(void);
 	static void handle_signal(int signal);
-	void        handle_client(int client_socket);
-	int		    execute_command(const std::string &command);
-	void        close_sockets();
+	void handle_client(int client_socket);
+	int  execute_command(const std::string &command);
+	void close_sockets();
 };
 
 #endif // DAEMON_HPP

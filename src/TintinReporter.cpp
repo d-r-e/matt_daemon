@@ -2,6 +2,7 @@
 
 TintinReporter::TintinReporter()
     : log_file("/var/log/matt_daemon/matt_daemon.log") {
+	
 	std::filesystem::create_directories("/var/log/matt_daemon");
 	if (!std::filesystem::exists("/var/log/matt_daemon")) {
 		std::cerr << "Error: Could not create log directory /var/log/matt_daemon" << std::endl;
@@ -45,6 +46,14 @@ void TintinReporter::log(const std::string &message) {
 		std::time_t t = std::time(0);
 		std::tm    *localtime = std::localtime(&t);
 		log_stream << std::put_time(localtime, "[%d/%m/%Y - %H:%M:%S] ") << message << std::endl;
+	}
+}
+
+void TintinReporter::debug(const std::string &message) {
+	if (log_stream.is_open() && DEBUG) {
+		std::time_t t = std::time(0);
+		std::tm    *localtime = std::localtime(&t);
+		log_stream << std::put_time(localtime, "[%d/%m/%Y - %H:%M:%S][DEBUG] ") << message << std::endl;
 	}
 }
 

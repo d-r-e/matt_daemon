@@ -1,7 +1,10 @@
 
 #include "Daemon.hpp"
 
+Daemon *Daemon::instance = nullptr;
+
 Daemon::Daemon() {
+	instance = this;
 	pid = 0;
 	if (!this->check_requirements()) {
 		exit(1);
@@ -10,11 +13,15 @@ Daemon::Daemon() {
 		std::cerr << "Error: Failed to daemonize." << std::endl;
 		exit(1);
 	}
+	signal(SIGTERM, Daemon::handle_signal);
+	signal(SIGINT, Daemon::handle_signal);
+	signal(SIGHUP, Daemon::handle_signal);
 	bzero(client_fds, sizeof(client_fds));
 }
 
 Daemon::~Daemon() {
 	this->reporter.log("Daemon stopped.");
+	close_sockets();
 	try {
 		std::filesystem::remove("/var/run/matt_daemon.lock");
 	} catch (const std::filesystem::filesystem_error &e) {
@@ -47,6 +54,7 @@ void Daemon::handle_signal(int signal) {
 	TintinReporter reporter;
 
 	if (signal == SIGTERM || signal == SIGINT) {
+		Daemon::instance->close_sockets();
 		std::filesystem::remove("/var/run/matt_daemon.lock");
 		if (signal == SIGTERM)
 			reporter.log("[SIGTERM] Daemon stopped.");
@@ -72,70 +80,46 @@ void Daemon::close_sockets() {
 }
 
 bool Daemon::daemonize(void) {
-	std::ifstream pid_file("/var/run/matt_daemon.lock");
-	pid_t         pid;
-	pid_t         sid;
-
-	if (std::filesystem::exists("/var/run/matt_daemon.lock")) {
-		std::cerr << "Error: Daemon is already running." << std::endl;
-		return false;
-	}
-
-	std::ofstream pid_file_write("/var/run/matt_daemon.lock");
-	if (!pid_file_write.is_open()) {
-		std::cerr << "Error: Failed to create pid file." << std::endl;
-		return false;
-	}
-	pid_file_write << getpid();
-	pid_file_write.close();
-	pid = fork();
-	if (pid < 0) {
-		std::cerr << "Error: Failed to fork." << std::endl;
-		return false;
-	}
-	if (pid > 0) {
-		exit(0);
-	}
+	pid_t pid, sid;
 
 	pid = fork();
 	if (pid < 0) {
-		std::cerr << "Error: Failed to fork." << std::endl;
+		std::cerr << "Fork failed: " << strerror(errno) << std::endl;
 		return false;
 	}
-	if (pid > 0) {
-		exit(0);
-	}
+	if (pid > 0) 
+		exit(EXIT_SUCCESS);
 	umask(0);
 	sid = setsid();
 	if (sid < 0) {
-		std::cerr << "Error: Failed to setsid." << std::endl;
+		std::cerr << "Failed to create a new session: " << strerror(errno) << std::endl;
 		return false;
 	}
 	if ((chdir("/")) < 0) {
-		std::cerr << "Error: Failed to chdir." << std::endl;
+		std::cerr << "Failed to change directory to /: " << strerror(errno) << std::endl;
 		return false;
 	}
-
-	close(STDIN_FILENO);
-	close(STDOUT_FILENO);
-	close(STDERR_FILENO);
-	this->pid = getpid();
-
-	signal(SIGTERM, Daemon::handle_signal);
-	signal(SIGINT, Daemon::handle_signal);
-	signal(SIGHUP, Daemon::handle_signal);
-
-	std::string start_message = "Daemon started with PID: " + std::to_string(this->pid);
-	this->reporter.log(start_message);
+	if (close(STDIN_FILENO) < 0 || close(STDOUT_FILENO) < 0 || close(STDERR_FILENO) < 0) {
+		std::cerr << "Failed to close standard file descriptors: " << strerror(errno) << std::endl;
+		return false;
+	}
+	if (open("/dev/null", O_RDONLY) < 0 || open("/dev/null", O_WRONLY) < 0 || open("/dev/null", O_WRONLY) < 0) {
+		std::cerr << "Failed to redirect standard file descriptors to /dev/null: " << strerror(errno) << std::endl;
+		return false;
+	}
+	signal(SIGTERM, handle_signal);
+	signal(SIGINT, handle_signal);
+	signal(SIGHUP, handle_signal);
 	return true;
 }
+
 
 int Daemon::start_remote_shell() {
 	struct sockaddr_in address;
 	int                addrlen = sizeof(address);
 
 	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-		reporter.error("Socket creation failed: " + std::string(strerror(errno)));
+		reporter.error("Socket creation failed: errno=" + std::to_string(errno) + " " + std::string(strerror(errno)));
 		return -1;
 	}
 
@@ -253,30 +237,44 @@ void Daemon::handle_client(int client_socket) {
 
 		std::string response = "Command executed with result: " + std::to_string(result) + "\n";
 		send(client_socket, response.c_str(), response.size(), 0);
-		reporter.log("Sent command result to client.");
+		reporter.debug("Sent command result to client.");
 
 		send(client_socket, prompt.c_str(), prompt.size(), 0);
-		reporter.log("Sent prompt to client again.");
+		reporter.debug("Sent prompt to client again.");
 	}
 }
 
 int Daemon::execute_command(const std::string &command) {
-	char        buffer[128];
+	std::string cmd = command;
 	std::string result;
-	int         return_code;
-	FILE       *pipe = popen(command.c_str(), "r");
+	int         status;
+	FILE       *pipe ;
+	
+	if (cmd.back() == '\n') {
+        cmd.pop_back();
+	}
 
+	if (cmd == "exit") {
+		return 0;
+	}
+
+	pipe = popen(cmd.c_str(), "r");
 	if (!pipe) {
-		reporter.error("Failed to execute command: " + command);
+		reporter.error("Failed to execute command: " + cmd);
 		return -1;
 	}
-
-	while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-		result += buffer;
+	char buffer[128];
+	while (!feof(pipe)) {
+		if (fgets(buffer, 128, pipe) != nullptr) {
+			result += buffer;
+		}
 	}
-
-	return_code = pclose(pipe);
-	reporter.log("Command output: " + result);
-
-	return return_code;
+	status = pclose(pipe);
+	if (status == -1) {
+		reporter.error("Failed to close pipe.");
+		return -1;
+	}
+	reporter.log("Command executed: " + cmd);
+	reporter.log("Command result: " + result);
+	return status;
 }
