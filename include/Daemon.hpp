@@ -38,21 +38,22 @@ class Daemon {
 	Daemon(const Daemon &);
 	Daemon &operator=(const Daemon &);
 
-	unsigned int getPid();
+	unsigned int get_pid();
 	int          start_remote_shell();
 
   private:
 	unsigned int   pid;
 	TintinReporter reporter;
 	int            server_fd;
-	int            client_fds[MAX_CLIENTS];
+	int            client_fds[MAX_CLIENTS + 1];
 	fd_set         readfds;
 
 	static Daemon *instance;
 
-	bool               check_requirements();
+	bool               check_requirements() const;
 	bool               daemonize(void);
 	static void        handle_signal(int signal);
+	unsigned int       get_client_count() const;
 	void               handle_client(int client_socket);
 	int                execute_command(const std::string &command, int client_socket);
 	void               close_sockets();

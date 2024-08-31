@@ -20,7 +20,7 @@ Daemon::Daemon() {
 }
 
 Daemon::~Daemon() {
-	this->reporter.log("Daemon stopped.");
+	this->reporter.info("Daemon stopped.");
 	close_sockets();
 	try {
 		std::filesystem::remove("/var/run/matt_daemon.lock");
@@ -38,11 +38,11 @@ Daemon &Daemon::operator=(const Daemon &d) {
 	return *this;
 }
 
-unsigned int Daemon::getPid() {
+unsigned int Daemon::get_pid() {
 	return pid;
 }
 
-bool Daemon::check_requirements() {
+bool Daemon::check_requirements() const {
 	if (getuid() != 0 && geteuid() != 0) {
 		std::cerr << "You must be root to run this program." << std::endl;
 		return false;
@@ -57,15 +57,25 @@ void Daemon::handle_signal(int signal) {
 		Daemon::instance->close_sockets();
 		std::filesystem::remove("/var/run/matt_daemon.lock");
 		if (signal == SIGTERM)
-			reporter.log("[SIGTERM] Daemon stopped.");
+			reporter.info("[SIGTERM] Daemon stopped.");
 		else
-			reporter.log("[SIGINT] Daemon stopped.");
+			reporter.info("[SIGINT] Daemon stopped.");
 		exit(0);
 	} else if (signal == SIGHUP) {
-		reporter.log("[SIGHUP] Daemon reloaded.");
+		reporter.info("[SIGHUP] Daemon reloaded.");
 	} else {
-		reporter.log("Unknown signal received.");
+		reporter.info("Unknown signal received.");
 	}
+}
+
+unsigned int Daemon::get_client_count() const {
+	unsigned int count = 0;
+	for (int i = 0; i < MAX_CLIENTS + 1; ++i) {
+		if (client_fds[i] > 0) {
+			count++;
+		}
+	}
+	return count;
 }
 
 void Daemon::close_sockets() {
@@ -93,12 +103,20 @@ bool Daemon::daemonize(void) {
 	}
 	if (pid > 0)
 		exit(EXIT_SUCCESS);
-	umask(0);
+	umask(027);
 	sid = setsid();
 	if (sid < 0) {
 		std::cerr << "Failed to create a new session: " << strerror(errno) << std::endl;
 		return false;
 	}
+	pid = fork();
+	if (pid < 0) {
+		std::cerr << "Fork failed: " << strerror(errno) << std::endl;
+		return false;
+	}
+	if (pid > 0)
+		exit(EXIT_SUCCESS);
+	
 	if ((chdir("/")) < 0) {
 		std::cerr << "Failed to change directory to /: " << strerror(errno) << std::endl;
 		return false;
@@ -149,32 +167,26 @@ int Daemon::start_remote_shell() {
 		return -1;
 	}
 
-	reporter.log("Daemon listening on port " + std::to_string(PORT));
+	reporter.info("Daemon listening on port " + std::to_string(PORT));
 
 	while (true) {
 		FD_ZERO(&readfds);
-
 		FD_SET(server_fd, &readfds);
 		int max_sd = server_fd;
 
 		for (int i = 0; i < MAX_CLIENTS; ++i) {
 			int sd = client_fds[i];
-
-			if (sd > 0) {
+			if (sd > 0)
 				FD_SET(sd, &readfds);
-			}
-
 			if (sd > max_sd) {
 				max_sd = sd;
 			}
 		}
 
 		int activity = select(max_sd + 1, &readfds, nullptr, nullptr, nullptr);
-
 		if ((activity < 0) && (errno != EINTR)) {
 			reporter.error("Select: " + std::string(strerror(errno)));
 		}
-
 		if (FD_ISSET(server_fd, &readfds)) {
 			int new_socket;
 			if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
@@ -182,24 +194,37 @@ int Daemon::start_remote_shell() {
 				continue;
 			}
 
-			reporter.log("New connection, socket fd: " + std::to_string(new_socket) +
-			             ", ip: " + inet_ntoa(address.sin_addr) +
-			             ", port: " + std::to_string(ntohs(address.sin_port)));
+			reporter.info("New connection, socket fd: " + std::to_string(new_socket) +
+			              ", ip: " + inet_ntoa(address.sin_addr) +
+			              ", port: " + std::to_string(ntohs(address.sin_port)));
 
-			for (int i = 0; i < MAX_CLIENTS; ++i) {
+			for (int i = 0; i < MAX_CLIENTS + 1; ++i) {
 				if (client_fds[i] == 0) {
 					client_fds[i] = new_socket;
 					break;
 				}
 			}
+
+			if (get_client_count() > MAX_CLIENTS) {
+				std::string msg = "[ERROR] Max clients reached, connection closed.\n";
+				send(new_socket, msg.c_str(), msg.size(), 0);
+				reporter.error("[" + std::to_string(new_socket) + "] Max clients reached, connection closed.");
+				close(new_socket);
+				for (int i = 0; i < MAX_CLIENTS + 1; ++i) {
+					if (client_fds[i] == new_socket) {
+						client_fds[i] = 0;
+						break;
+					}
+				}
+			} else {
+				reporter.info("Client " + std::to_string(get_client_count()) + " connected.");
+			}
 		}
 
 		for (int i = 0; i < MAX_CLIENTS; ++i) {
 			int sd = client_fds[i];
-
-			if (FD_ISSET(sd, &readfds)) {
+			if (FD_ISSET(sd, &readfds)) 
 				handle_client(sd);
-			}
 		}
 	}
 
@@ -212,16 +237,16 @@ void Daemon::handle_client(int client_socket) {
 	int         bytes_read;
 	std::string cmd;
 
-	std::string prompt = "$ ";
+	std::string prompt = "\r$ ";
 	send(client_socket, prompt.c_str(), prompt.size(), 0);
-	reporter.log("Sent prompt to client.");
+	reporter.info("Sent prompt to client.");
 
 	bzero(buffer, sizeof(buffer));
 	bytes_read = read(client_socket, buffer, sizeof(buffer) - 1);
 
 	if (bytes_read <= 0) {
 		if (bytes_read == 0) {
-			reporter.log("Client disconnected.");
+			reporter.info("Client disconnected.");
 		} else {
 			reporter.error("Read error: " + std::string(strerror(errno)));
 		}
@@ -236,10 +261,9 @@ void Daemon::handle_client(int client_socket) {
 	} else {
 		buffer[bytes_read] = '\0';
 		cmd = std::string(buffer);
-		// Remove trailing newline
 		cmd.erase(std::remove(cmd.begin(), cmd.end(), '\n'), cmd.end());
 		cmd.erase(std::remove(cmd.begin(), cmd.end(), '\r'), cmd.end());
-		if (Daemon::tolower(cmd) == "quit\r\n") {
+		if (Daemon::tolower(cmd) == "quit") {
 			reporter.debug("[" + std::to_string(client_socket) + "] Client requested to exit.");
 			close(client_socket);
 			for (int i = 0; i < MAX_CLIENTS; i++) {
@@ -250,14 +274,8 @@ void Daemon::handle_client(int client_socket) {
 			}
 			return;
 		}
-		reporter.debug("[" + std::to_string(client_socket) + "] Received (" + std::to_string(bytes_read) + "): " + cmd);
-
-		int result = execute_command(cmd, client_socket);
-
-		std::string response = "Command executed with result: " + std::to_string(result) + "\n";
-		send(client_socket, response.c_str(), response.size(), 0);
-		reporter.debug("Sent command result to client.");
-
+		reporter.log("[" + std::to_string(client_socket) + "] " + cmd);
+		execute_command(cmd, client_socket);
 		send(client_socket, prompt.c_str(), prompt.size(), 0);
 	}
 }
@@ -272,12 +290,10 @@ int Daemon::execute_command(const std::string &command, int client_socket) {
 	std::array<char, 128> buffer;
 	std::string           result;
 
-	
 	if (command.empty()) {
 		reporter.error("Empty command received.");
 		return -1;
 	}
-
 	for (const char &ch : command) {
 		if (std::isalnum(ch) || std::isspace(ch) || ch == '.' || ch == '-' || ch == '/' || ch == '_') {
 			sanitized_command += ch;
@@ -289,32 +305,27 @@ int Daemon::execute_command(const std::string &command, int client_socket) {
 		}
 	}
 	sanitized_command = "/bin/sh -c \"" + sanitized_command + "\"";
-
 	if (sanitized_command.empty()) {
 		reporter.error("Sanitized command is empty, nothing to execute.");
 		return -1;
 	}
-
 	sanitized_command += " 2>&1";
-
 	std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(sanitized_command.c_str(), "r"), pclose);
-
 	if (!pipe) {
 		reporter.error("Failed to open pipe for command execution.");
 		return -1;
 	}
-
 	while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
 		result += buffer.data();
 	}
-
 	int exit_code = WEXITSTATUS(pclose(pipe.release()));
-
+	reporter.debug("[" + std::to_string(client_socket) + "] Command executed successfully: " + result);
+	if ((send(client_socket, result.c_str(), result.size(), 0)) < 0) {
+		reporter.error("Failed to send command result to client.");
+	}
 	if (exit_code != 0) {
 		reporter.error("Command execution failed with exit code " + std::to_string(exit_code) + ": " + result);
 		return exit_code;
 	}
-
-	reporter.debug("[" + std::to_string(client_socket) + "] Command executed successfully: " + result);
 	return exit_code;
 }
