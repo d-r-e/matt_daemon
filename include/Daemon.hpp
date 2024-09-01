@@ -21,6 +21,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>

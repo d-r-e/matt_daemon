@@ -8,11 +8,13 @@ Daemon::Daemon() {
 	instance = this;
 	pid = 0;
 	if (!this->check_requirements()) {
-		exit(1);
+		this->stop_requested = 1;
+		exit(EXIT_FAILURE);
 	}
 	if (!this->daemonize()) {
 		std::cerr << "Error: Failed to daemonize." << std::endl;
-		exit(1);
+		this->stop_requested = 1;
+		exit(EXIT_FAILURE);
 	}
 	signal(SIGTERM, Daemon::handle_signal);
 	signal(SIGINT, Daemon::handle_signal);
@@ -23,12 +25,12 @@ Daemon::Daemon(bool daemonize) {
 	instance = this;
 	pid = 0;
 	if (!this->check_requirements()) {
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	if (daemonize) {
 		if (!this->daemonize()) {
 			std::cerr << "Error: Failed to daemonize." << std::endl;
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 	}
 	signal(SIGTERM, Daemon::handle_signal);
@@ -186,6 +188,9 @@ int Daemon::start_remote_shell() {
 	int                addrlen = sizeof(address);
 	int                max_sd;
 
+	if (this->stop_requested) {
+		return -1;
+	}
 	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
 		reporter.error("Socket: " + std::string(strerror(errno)));
 		return -1;
@@ -248,12 +253,12 @@ int Daemon::start_remote_shell() {
 				}
 			}
 			if (get_client_count() > MAX_CLIENTS) {
-				std::string msg = "[ERROR] Max clients reached, connection closed.\n";
+				std::string msg = "[ERROR] Max clients reached, connection closed.\r\n";
 				send(new_socket, msg.c_str(), msg.size(), 0);
 				reporter.error("[" + std::to_string(new_socket) + "] Max clients reached, connection closed.");
-				close(new_socket);
 				for (int i = 0; i < MAX_CLIENTS + 1; ++i) {
 					if (client_fds[i] == new_socket) {
+						close(client_fds[i]);
 						client_fds[i] = 0;
 						break;
 					}
@@ -276,10 +281,8 @@ void Daemon::handle_client(int client_socket) {
 	char        buffer[1024];
 	int         bytes_read;
 	std::string cmd;
-
 	std::string prompt = "\r$ ";
-	send(client_socket, prompt.c_str(), prompt.size(), 0);
-	reporter.info("Sent prompt to client.");
+
 
 	bzero(buffer, sizeof(buffer));
 	bytes_read = read(client_socket, buffer, sizeof(buffer) - 1);
@@ -315,8 +318,10 @@ void Daemon::handle_client(int client_socket) {
 			return;
 		}
 		reporter.log("[" + std::to_string(client_socket) + "] " + cmd);
-		execute_command(cmd, client_socket);
-		send(client_socket, prompt.c_str(), prompt.size(), 0);
+		// execute_command(cmd, client_socket);
+		// send(client_socket, prompt.c_str(), prompt.size(), 0);
+		std::thread command_thread(&Daemon::execute_command, this, cmd, client_socket);
+		command_thread.detach();
 	}
 }
 
@@ -329,6 +334,7 @@ int Daemon::execute_command(const std::string &command, int client_socket) {
 	std::string           sanitized_command;
 	std::array<char, 128> buffer;
 	std::string           result;
+	FILE                 *pipe;
 
 	if (command.empty()) {
 		reporter.error("Empty command received.");
@@ -350,19 +356,21 @@ int Daemon::execute_command(const std::string &command, int client_socket) {
 		return -1;
 	}
 	sanitized_command += " 2>&1";
-	std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(sanitized_command.c_str(), "r"), pclose);
+	pipe = popen(sanitized_command.c_str(), "r");
 	if (!pipe) {
 		reporter.error("Failed to open pipe for command execution.");
 		return -1;
 	}
-	while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+	while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
 		result += buffer.data();
 	}
-	int exit_code = WEXITSTATUS(pclose(pipe.release()));
+	int exit_code = pclose(pipe);
+	exit_code = WEXITSTATUS(exit_code);
 	reporter.debug("[" + std::to_string(client_socket) + "] Command executed successfully: " + result);
-	if ((send(client_socket, result.c_str(), result.size(), 0)) < 0) {
+	if (send(client_socket, result.c_str(), result.size(), 0) < 0) {
 		reporter.error("Failed to send command result to client.");
 	}
+
 	if (exit_code != 0) {
 		reporter.error("Command execution failed with exit code " + std::to_string(exit_code) + ": " + result);
 		return exit_code;

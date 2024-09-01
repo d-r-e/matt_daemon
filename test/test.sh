@@ -152,6 +152,18 @@ check_max_clients() {
     pkill -f "nc localhost 4242"
 }
 
+test_message_log(){
+    local string="echo $(date)"
+    (echo $string; sleep .1; echo "quit") | nc localhost 4242
+    sleep 1
+    if grep -q "$string" "$LOG_FILE"; then
+        echo -e "${GREEN}Test passed: Message was logged.${NC}"
+    else
+        echo -e "${RED}Test failed: Message was not logged.${NC}"
+        exit 1
+    fi
+}
+
 cleanup
 
 make && $DAEMON_BINARY
@@ -164,8 +176,9 @@ check_tintin_reporter
 check_log_entries
 check_single_instance
 check_lock_file
+test_message_log
+check_max_clients
 check_cleanup_on_sigint
-# check_max_clients
 
 
 echo -e "${GREEN}All tests passed successfully.${NC}"
