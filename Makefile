@@ -10,7 +10,7 @@ HEADER = $(INCLUDE_DIR)/main.hpp $(INCLUDE_DIR)/Daemon.hpp $(INCLUDE_DIR)/Tintin
 OBJ = $(BUILD_DIR)/main.o $(BUILD_DIR)/Daemon.o $(BUILD_DIR)/TintinReporter.o
 
 CXX = clang++
-CXXFLAGS = -Wall -Wextra -Werror -O2 -I $(INCLUDE_DIR) -std=c++17
+CXXFLAGS = -Wall -Wextra -Werror -O2 -I $(INCLUDE_DIR) -g3 -std=c++17
 
 all: $(BIN_DIR)/$(NAME)
 
@@ -42,6 +42,7 @@ x: all
 	@pkill Matt_daemon || true
 	./$(BIN_DIR)/$(NAME)
 
+	
 kill:
 	kill -9 `ps aux | grep $(NAME) | grep -v grep | awk '{print $$2}'`
 
