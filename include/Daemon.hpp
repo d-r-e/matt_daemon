@@ -34,6 +34,7 @@
 class Daemon {
   public:
 	Daemon();
+	Daemon(bool daemonize);
 	~Daemon();
 	Daemon(const Daemon &);
 	Daemon &operator=(const Daemon &);
@@ -57,6 +58,7 @@ class Daemon {
 	void               handle_client(int client_socket);
 	int                execute_command(const std::string &command, int client_socket);
 	void               close_sockets();
+	void			   close_clients();
 	static std::string tolower(std::string str);
 };
 

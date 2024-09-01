@@ -6,5 +6,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <exception>
 
 #include "Daemon.hpp"

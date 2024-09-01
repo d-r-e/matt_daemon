@@ -1,10 +1,15 @@
 #include "main.hpp"
 
-int main() {
+int main(int argc, char **argv) {
 	try {
+		if (argc > 1 && std::string(argv[1]) == "--no-daemonize") {
+			Daemon d(false);
+			d.start_remote_shell();
+		} else {
+			Daemon d;
+			d.start_remote_shell();
+		}
 
-		Daemon d;
-		d.start_remote_shell();
 
 	} catch (std::filesystem::filesystem_error &e) {
 		std::cerr << "Filesystem Error: " << e.what() << " - Error code: " << e.code() << std::endl;

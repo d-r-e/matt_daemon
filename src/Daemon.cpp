@@ -16,7 +16,23 @@ Daemon::Daemon() {
 	signal(SIGTERM, Daemon::handle_signal);
 	signal(SIGINT, Daemon::handle_signal);
 	signal(SIGHUP, Daemon::handle_signal);
-	bzero(client_fds, sizeof(client_fds));
+}
+
+Daemon::Daemon(bool daemonize) {
+	instance = this;
+	pid = 0;
+	if (!this->check_requirements()) {
+		exit(1);
+	}
+	if (daemonize) {
+		if (!this->daemonize()) {
+			std::cerr << "Error: Failed to daemonize." << std::endl;
+			exit(1);
+		}
+	}
+	signal(SIGTERM, Daemon::handle_signal);
+	signal(SIGINT, Daemon::handle_signal);
+	signal(SIGHUP, Daemon::handle_signal);
 }
 
 Daemon::~Daemon() {
@@ -27,6 +43,7 @@ Daemon::~Daemon() {
 	} catch (const std::filesystem::filesystem_error &e) {
 		reporter.error("Failed to remove lock file: " + std::string(e.what()));
 	}
+	reporter.~TintinReporter();
 }
 
 Daemon::Daemon(const Daemon &d) {
@@ -43,8 +60,20 @@ unsigned int Daemon::get_pid() {
 }
 
 bool Daemon::check_requirements() const {
+	// int pid;
 	if (getuid() != 0 && geteuid() != 0) {
 		std::cerr << "You must be root to run this program." << std::endl;
+		return false;
+	}
+	std::ifstream lock_file("/var/run/matt_daemon.lock");
+	if (std::filesystem::exists("/var/run/matt_daemon.lock")) {
+		std::string message = "Daemon is already running with PID: ";
+		std::string pid_str;
+		std::getline(lock_file, pid_str);
+		message += pid_str;
+		std::cerr << message << std::endl;
+		lock_file.close();
+
 		return false;
 	}
 	return true;
@@ -54,14 +83,17 @@ void Daemon::handle_signal(int signal) {
 	TintinReporter reporter;
 
 	if (signal == SIGTERM || signal == SIGINT) {
+		Daemon::instance->close_clients();
 		Daemon::instance->close_sockets();
 		std::filesystem::remove("/var/run/matt_daemon.lock");
 		if (signal == SIGTERM)
 			reporter.info("[SIGTERM] Daemon stopped.");
 		else
 			reporter.info("[SIGINT] Daemon stopped.");
+		reporter.~TintinReporter();
 		exit(0);
 	} else if (signal == SIGHUP) {
+		Daemon::instance->close_clients();
 		reporter.info("[SIGHUP] Daemon reloaded.");
 	} else {
 		reporter.info("Unknown signal received.");
@@ -92,8 +124,7 @@ void Daemon::close_sockets() {
 bool Daemon::daemonize(void) {
 	pid_t pid, sid;
 
-	if (getuid() != 0 && geteuid() != 0) {
-		std::cerr << "You must be root to run this program." << std::endl;
+	if (!check_requirements()) {
 		return false;
 	}
 	pid = fork();
@@ -101,8 +132,9 @@ bool Daemon::daemonize(void) {
 		std::cerr << "Fork failed: " << strerror(errno) << std::endl;
 		return false;
 	}
-	if (pid > 0)
+	if (pid > 0) {
 		exit(EXIT_SUCCESS);
+	}
 	umask(027);
 	sid = setsid();
 	if (sid < 0) {
@@ -114,9 +146,9 @@ bool Daemon::daemonize(void) {
 		std::cerr << "Fork failed: " << strerror(errno) << std::endl;
 		return false;
 	}
-	if (pid > 0)
+	if (pid > 0) {
 		exit(EXIT_SUCCESS);
-	
+	}
 	if ((chdir("/")) < 0) {
 		std::cerr << "Failed to change directory to /: " << strerror(errno) << std::endl;
 		return false;
@@ -129,6 +161,13 @@ bool Daemon::daemonize(void) {
 		std::cerr << "Failed to redirect standard file descriptors to /dev/null: " << strerror(errno) << std::endl;
 		return false;
 	}
+	std::ofstream lock_file("/var/run/matt_daemon.lock");
+	if (!lock_file.is_open()) {
+		reporter.error("Failed to create lock file: " + std::string(strerror(errno)));
+		return false;
+	}
+	lock_file << getpid();
+	lock_file.close();
 	signal(SIGTERM, handle_signal);
 	signal(SIGINT, handle_signal);
 	signal(SIGHUP, handle_signal);
@@ -162,6 +201,10 @@ int Daemon::start_remote_shell() {
 		close(server_fd);
 		return -1;
 	}
+	bzero(client_fds, sizeof(client_fds));
+	FD_ZERO(&readfds);
+	FD_SET(server_fd, &readfds);
+
 	reporter.info("Daemon listening on port " + std::to_string(PORT));
 	while (true) {
 		FD_ZERO(&readfds);
@@ -212,8 +255,12 @@ int Daemon::start_remote_shell() {
 		}
 		for (int i = 0; i < MAX_CLIENTS; ++i) {
 			int sd = client_fds[i];
-			if (FD_ISSET(sd, &readfds)) 
+			if (FD_ISSET(sd, &readfds)){
+
 				handle_client(sd);
+				;
+			} 
+
 		}
 	}
 	close_sockets();
@@ -316,4 +363,16 @@ int Daemon::execute_command(const std::string &command, int client_socket) {
 		return exit_code;
 	}
 	return exit_code;
+}
+
+
+void Daemon::close_clients() {
+	for (int i = 0; i < MAX_CLIENTS; ++i) {
+		if (client_fds[i] > 0) {
+			std::string msg = "Server shutting down.\n";
+			send(client_fds[i], msg.c_str(), msg.size(), 0);
+			close(client_fds[i]);
+			client_fds[i] = 0;
+		}
+	}
 }

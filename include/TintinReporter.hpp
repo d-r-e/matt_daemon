@@ -24,6 +24,7 @@ class TintinReporter {
 	std::string   log_file;
 	std::ofstream log_stream;
 	void          open_log_file();
+	void          close_log_file();
 };
 
 #endif // TINTIN_REPORTER_HPP
