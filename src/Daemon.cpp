@@ -278,7 +278,7 @@ int Daemon::start_remote_shell() {
 }
 
 void Daemon::handle_client(int client_socket) {
-	char        buffer[1024];
+	char        buffer[1024 * 10];
 	int         bytes_read;
 	std::string cmd;
 	std::string prompt = "\r$ ";
