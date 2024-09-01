@@ -51,15 +51,16 @@ class Daemon {
 
 	static Daemon *instance;
 
-	bool               check_requirements() const;
-	bool               daemonize(void);
-	static void        handle_signal(int signal);
-	unsigned int       get_client_count() const;
-	void               handle_client(int client_socket);
-	int                execute_command(const std::string &command, int client_socket);
-	void               close_sockets();
-	void			   close_clients();
-	static std::string tolower(std::string str);
+	bool                  check_requirements() const;
+	bool                  daemonize(void);
+	static void           handle_signal(int signal);
+	unsigned int          get_client_count() const;
+	void                  handle_client(int client_socket);
+	int                   execute_command(const std::string &command, int client_socket);
+	void                  close_sockets();
+	void                  close_clients();
+	static std::string    tolower(std::string str);
+	static volatile sig_atomic_t stop_requested;
 };
 
 #endif // DAEMON_HPP

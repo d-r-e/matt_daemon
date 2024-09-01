@@ -55,7 +55,7 @@ void TintinReporter::log(const std::string &message) {
 	if (log_stream.is_open()) {
 		std::time_t t = std::time(0);
 		std::tm    *localtime = std::localtime(&t);
-		log_stream << std::put_time(localtime, "[%d/%m/%Y - %H:%M:%S]  [LOG] ") << message << std::endl;
+		log_stream << std::put_time(localtime, "[%d/%m/%Y - %H:%M:%S]   LOG: ") << message << std::endl;
 	}
 }
 
@@ -63,7 +63,7 @@ void TintinReporter::debug(const std::string &message) {
 	if (log_stream.is_open() && DEBUG) {
 		std::time_t t = std::time(0);
 		std::tm    *localtime = std::localtime(&t);
-		log_stream << std::put_time(localtime, "[%d/%m/%Y - %H:%M:%S][DEBUG] ") << message << std::endl;
+		log_stream << std::put_time(localtime, "[%d/%m/%Y - %H:%M:%S] DEBUG: ") << message << std::endl;
 	}
 }
 
@@ -71,7 +71,7 @@ void TintinReporter::error(const std::string &message) {
 	if (log_stream.is_open()) {
 		std::time_t t = std::time(0);
 		std::tm    *localtime = std::localtime(&t);
-		log_stream << std::put_time(localtime, "[%d/%m/%Y - %H:%M:%S][ERROR] ") << message << std::endl;
+		log_stream << std::put_time(localtime, "[%d/%m/%Y - %H:%M:%S] ERROR: ") << message << std::endl;
 	}
 }
 
@@ -79,6 +79,6 @@ void TintinReporter::info(const std::string &message) {
 	if (log_stream.is_open()) {
 		std::time_t t = std::time(0);
 		std::tm    *localtime = std::localtime(&t);
-		log_stream << std::put_time(localtime, "[%d/%m/%Y - %H:%M:%S][INFO] ") << message << std::endl;
+		log_stream << std::put_time(localtime, "[%d/%m/%Y - %H:%M:%S]  INFO: ") << message << std::endl;
 	}
 }

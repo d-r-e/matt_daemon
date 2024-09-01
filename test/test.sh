@@ -169,3 +169,5 @@ check_cleanup_on_sigint
 
 
 echo -e "${GREEN}All tests passed successfully.${NC}"
+
+cleanup

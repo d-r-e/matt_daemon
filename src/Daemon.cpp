@@ -2,6 +2,7 @@
 #include "Daemon.hpp"
 
 Daemon *Daemon::instance = nullptr;
+volatile sig_atomic_t Daemon::stop_requested = 0;
 
 Daemon::Daemon() {
 	instance = this;
@@ -43,7 +44,7 @@ Daemon::~Daemon() {
 	} catch (const std::filesystem::filesystem_error &e) {
 		reporter.error("Failed to remove lock file: " + std::string(e.what()));
 	}
-	reporter.~TintinReporter();
+	// reporter.~TintinReporter();
 }
 
 Daemon::Daemon(const Daemon &d) {
@@ -60,7 +61,6 @@ unsigned int Daemon::get_pid() {
 }
 
 bool Daemon::check_requirements() const {
-	// int pid;
 	if (getuid() != 0 && geteuid() != 0) {
 		std::cerr << "You must be root to run this program." << std::endl;
 		return false;
@@ -73,7 +73,6 @@ bool Daemon::check_requirements() const {
 		message += pid_str;
 		std::cerr << message << std::endl;
 		lock_file.close();
-
 		return false;
 	}
 	return true;
@@ -90,8 +89,7 @@ void Daemon::handle_signal(int signal) {
 			reporter.info("[SIGTERM] Daemon stopped.");
 		else
 			reporter.info("[SIGINT] Daemon stopped.");
-		reporter.~TintinReporter();
-		exit(0);
+		stop_requested = 1;
 	} else if (signal == SIGHUP) {
 		Daemon::instance->close_clients();
 		reporter.info("[SIGHUP] Daemon reloaded.");
@@ -206,7 +204,7 @@ int Daemon::start_remote_shell() {
 	FD_SET(server_fd, &readfds);
 
 	reporter.info("Daemon listening on port " + std::to_string(PORT));
-	while (true) {
+	while (!stop_requested) {
 		FD_ZERO(&readfds);
 		FD_SET(server_fd, &readfds);
 		int max_sd = server_fd;
