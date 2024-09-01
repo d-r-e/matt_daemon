@@ -1,7 +1,7 @@
 
 #include "Daemon.hpp"
 
-Daemon *Daemon::instance = nullptr;
+Daemon               *Daemon::instance = nullptr;
 volatile sig_atomic_t Daemon::stop_requested = 0;
 
 Daemon::Daemon() {
@@ -44,7 +44,6 @@ Daemon::~Daemon() {
 	} catch (const std::filesystem::filesystem_error &e) {
 		reporter.error("Failed to remove lock file: " + std::string(e.what()));
 	}
-	// reporter.~TintinReporter();
 }
 
 Daemon::Daemon(const Daemon &d) {
@@ -118,63 +117,74 @@ void Daemon::close_sockets() {
 		close(server_fd);
 	}
 }
-
 bool Daemon::daemonize(void) {
 	pid_t pid, sid;
 
 	if (!check_requirements()) {
 		return false;
 	}
+
 	pid = fork();
 	if (pid < 0) {
-		std::cerr << "Fork failed: " << strerror(errno) << std::endl;
+		reporter.error("Fork failed: " + std::string(strerror(errno)));
 		return false;
 	}
 	if (pid > 0) {
 		exit(EXIT_SUCCESS);
 	}
+
 	umask(027);
+
 	sid = setsid();
 	if (sid < 0) {
-		std::cerr << "Failed to create a new session: " << strerror(errno) << std::endl;
+		reporter.error("Failed to create a new session: " + std::string(strerror(errno)));
 		return false;
 	}
+
 	pid = fork();
 	if (pid < 0) {
-		std::cerr << "Fork failed: " << strerror(errno) << std::endl;
+		reporter.error("Fork failed: " + std::string(strerror(errno)));
 		return false;
 	}
 	if (pid > 0) {
 		exit(EXIT_SUCCESS);
 	}
-	if ((chdir("/")) < 0) {
-		std::cerr << "Failed to change directory to /: " << strerror(errno) << std::endl;
+
+	if (chdir("/") < 0) {
+		reporter.error("Failed to change directory to /: " + std::string(strerror(errno)));
 		return false;
 	}
+
 	if (close(STDIN_FILENO) < 0 || close(STDOUT_FILENO) < 0 || close(STDERR_FILENO) < 0) {
-		std::cerr << "Failed to close standard file descriptors: " << strerror(errno) << std::endl;
+		reporter.error("Failed to close standard file descriptors: " + std::string(strerror(errno)));
 		return false;
 	}
+
 	if (open("/dev/null", O_RDONLY) < 0 || open("/dev/null", O_WRONLY) < 0 || open("/dev/null", O_WRONLY) < 0) {
-		std::cerr << "Failed to redirect standard file descriptors to /dev/null: " << strerror(errno) << std::endl;
+		reporter.error("Failed to redirect standard file descriptors to /dev/null: " + std::string(strerror(errno)));
 		return false;
 	}
+
 	std::ofstream lock_file("/var/run/matt_daemon.lock");
 	if (!lock_file.is_open()) {
 		reporter.error("Failed to create lock file: " + std::string(strerror(errno)));
 		return false;
 	}
+
 	lock_file << getpid();
 	lock_file.close();
+
 	signal(SIGTERM, handle_signal);
 	signal(SIGINT, handle_signal);
 	signal(SIGHUP, handle_signal);
+
 	return true;
 }
 
 int Daemon::start_remote_shell() {
 	struct sockaddr_in address;
 	int                addrlen = sizeof(address);
+	int                max_sd;
 
 	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
 		reporter.error("Socket: " + std::string(strerror(errno)));
@@ -199,15 +209,15 @@ int Daemon::start_remote_shell() {
 		close(server_fd);
 		return -1;
 	}
-	bzero(client_fds, sizeof(client_fds));
+	bzero(this->client_fds, sizeof(this->client_fds));
 	FD_ZERO(&readfds);
 	FD_SET(server_fd, &readfds);
 
-	reporter.info("Daemon listening on port " + std::to_string(PORT));
-	while (!stop_requested) {
+	this->reporter.info("Daemon listening on port " + std::to_string(PORT));
+	while (!this->stop_requested) {
 		FD_ZERO(&readfds);
 		FD_SET(server_fd, &readfds);
-		int max_sd = server_fd;
+		max_sd = server_fd;
 
 		for (int i = 0; i < MAX_CLIENTS; ++i) {
 			int sd = client_fds[i];
@@ -248,17 +258,14 @@ int Daemon::start_remote_shell() {
 						break;
 					}
 				}
-			} else 
+			} else
 				reporter.info("Client " + std::to_string(get_client_count()) + " connected.");
 		}
 		for (int i = 0; i < MAX_CLIENTS; ++i) {
 			int sd = client_fds[i];
-			if (FD_ISSET(sd, &readfds)){
-
+			if (FD_ISSET(sd, &readfds)) {
 				handle_client(sd);
-				;
-			} 
-
+			}
 		}
 	}
 	close_sockets();
@@ -362,7 +369,6 @@ int Daemon::execute_command(const std::string &command, int client_socket) {
 	}
 	return exit_code;
 }
-
 
 void Daemon::close_clients() {
 	for (int i = 0; i < MAX_CLIENTS; ++i) {

@@ -8,6 +8,7 @@ RUN apk --update add \
     iproute2 \
     iputils \
     make \
+    netcat-openbsd \
     psutils \
     tzdata \
     valgrind \

@@ -43,24 +43,24 @@ class Daemon {
 	int          start_remote_shell();
 
   private:
-	unsigned int   pid;
-	TintinReporter reporter;
-	int            server_fd;
-	int            client_fds[MAX_CLIENTS + 1];
-	fd_set         readfds;
-
-	static Daemon *instance;
-
-	bool                  check_requirements() const;
-	bool                  daemonize(void);
-	static void           handle_signal(int signal);
-	unsigned int          get_client_count() const;
-	void                  handle_client(int client_socket);
-	int                   execute_command(const std::string &command, int client_socket);
-	void                  close_sockets();
-	void                  close_clients();
-	static std::string    tolower(std::string str);
+	unsigned int                 pid;
+	TintinReporter               reporter;
+	int                          server_fd;
+	int                          client_fds[MAX_CLIENTS + 1];
+	fd_set                       readfds;
+	static Daemon               *instance;
 	static volatile sig_atomic_t stop_requested;
+
+	bool         check_requirements() const;
+	bool         daemonize(void);
+	unsigned int get_client_count() const;
+	void         handle_client(int client_socket);
+	int          execute_command(const std::string &command, int client_socket);
+	void         close_sockets();
+	void         close_clients();
+
+	static void        handle_signal(int signal);
+	static std::string tolower(std::string str);
 };
 
 #endif // DAEMON_HPP
