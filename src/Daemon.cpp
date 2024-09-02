@@ -45,7 +45,7 @@ Daemon::Daemon(bool daemonize) {
 Daemon::~Daemon() {
 	this->reporter.info("Daemon stopped.");
 	close_sockets();
-	if (flock(lock_fd, LOCK_UN|LOCK_NB))
+	if (flock(lock_fd, LOCK_UN | LOCK_NB))
 		reporter.error("Failed to unlock lock file: " + std::string(strerror(errno)));
 	close(lock_fd);
 	try {
@@ -249,7 +249,7 @@ int Daemon::start_remote_shell() {
 			if (this->stop_requested) {
 				break;
 			}
-			if ( (new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
+			if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
 				reporter.error("Accept: " + std::string(strerror(errno)));
 				continue;
 			}
@@ -292,7 +292,6 @@ void Daemon::handle_client(int client_socket) {
 	int         bytes_read;
 	std::string cmd;
 	std::string prompt = "\r$ ";
-
 
 	bzero(buffer, sizeof(buffer));
 	bytes_read = read(client_socket, buffer, sizeof(buffer) - 1);
@@ -387,7 +386,6 @@ int Daemon::execute_command(const std::string &command, int client_socket) {
 	}
 	return exit_code;
 }
-
 
 void Daemon::close_clients() {
 	for (int i = 0; i < MAX_CLIENTS; ++i) {
