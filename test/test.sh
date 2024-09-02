@@ -76,10 +76,10 @@ check_port_listening() {
 }
 
 check_tintin_reporter() {
-    if grep -R "TintinReporter()" $SOURCE_DIR/*.cpp > /dev/null; then
-        echo -e "${GREEN}Test passed: TintinReporter class exists in the source code.${NC}"
+    if grep -R "Tintin_reporter()" $SOURCE_DIR/*.cpp > /dev/null; then
+        echo -e "${GREEN}Test passed: Tintin_reporter class exists in the source code.${NC}"
     else
-        echo -e "${RED}Test failed: TintinReporter class not found.${NC}"
+        echo -e "${RED}Test failed: Tintin_reporter class not found.${NC}"
         exit 1
     fi
 }

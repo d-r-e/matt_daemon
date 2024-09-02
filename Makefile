@@ -5,9 +5,9 @@ INCLUDE_DIR = include
 BUILD_DIR = build
 BIN_DIR = bin
 
-SRC = $(SRC_DIR)/main.cpp $(SRC_DIR)/Daemon.cpp $(SRC_DIR)/TintinReporter.cpp
-HEADER = $(INCLUDE_DIR)/main.hpp $(INCLUDE_DIR)/Daemon.hpp $(INCLUDE_DIR)/TintinReporter.hpp
-OBJ = $(BUILD_DIR)/main.o $(BUILD_DIR)/Daemon.o $(BUILD_DIR)/TintinReporter.o
+SRC = $(SRC_DIR)/main.cpp $(SRC_DIR)/Daemon.cpp $(SRC_DIR)/Tintin_reporter.cpp
+HEADER = $(INCLUDE_DIR)/main.hpp $(INCLUDE_DIR)/Daemon.hpp $(INCLUDE_DIR)/Tintin_reporter.hpp
+OBJ = $(BUILD_DIR)/main.o $(BUILD_DIR)/Daemon.o $(BUILD_DIR)/Tintin_reporter.o
 
 CXX = clang++
 CXXFLAGS = -Wall -Wextra -Werror -O2 -I $(INCLUDE_DIR) -g3 -std=c++17
@@ -26,7 +26,7 @@ $(BUILD_DIR)/Daemon.o: $(SRC_DIR)/Daemon.cpp $(INCLUDE_DIR)/Daemon.hpp $(HEADER)
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(BUILD_DIR)/TintinReporter.o: $(SRC_DIR)/TintinReporter.cpp $(INCLUDE_DIR)/TintinReporter.hpp $(HEADER)
+$(BUILD_DIR)/Tintin_reporter.o: $(SRC_DIR)/Tintin_reporter.cpp $(INCLUDE_DIR)/Tintin_reporter.hpp $(HEADER)
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 

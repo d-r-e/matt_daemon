@@ -1,26 +1,26 @@
-#include "TintinReporter.hpp"
+#include "Tintin_reporter.hpp"
 #include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 
-TintinReporter::TintinReporter() {
+Tintin_reporter::Tintin_reporter() {
 	log_file = "/var/log/matt_daemon.log";
 	open_log_file();
 }
 
-TintinReporter::~TintinReporter() {
+Tintin_reporter::~Tintin_reporter() {
 	close_log_file();
 	log_stream.clear();
 }
 
-TintinReporter::TintinReporter(const TintinReporter &other)
+Tintin_reporter::Tintin_reporter(const Tintin_reporter &other)
     : log_file(other.log_file) {
 	open_log_file();
 }
 
-TintinReporter &TintinReporter::operator=(const TintinReporter &other) {
+Tintin_reporter &Tintin_reporter::operator=(const Tintin_reporter &other) {
 	if (this != &other) {
 		if (log_stream.is_open()) {
 			log_stream.close();
@@ -31,7 +31,7 @@ TintinReporter &TintinReporter::operator=(const TintinReporter &other) {
 	return *this;
 }
 
-void TintinReporter::open_log_file() {
+void Tintin_reporter::open_log_file() {
 	std::filesystem::path log_path = log_file;
 	std::filesystem::path log_dir = log_path.parent_path();
 
@@ -44,14 +44,14 @@ void TintinReporter::open_log_file() {
 	}
 }
 
-void TintinReporter::close_log_file() {
+void Tintin_reporter::close_log_file() {
 	if (log_stream.is_open()) {
 		log_stream.flush();
 		log_stream.close();
 	}
 }
 
-void TintinReporter::log(const std::string &message) {
+void Tintin_reporter::log(const std::string &message) {
 	if (log_stream.is_open()) {
 		std::time_t t = std::time(0);
 		std::tm    *localtime = std::localtime(&t);
@@ -59,7 +59,7 @@ void TintinReporter::log(const std::string &message) {
 	}
 }
 
-void TintinReporter::debug(const std::string &message) {
+void Tintin_reporter::debug(const std::string &message) {
 	if (log_stream.is_open() && DEBUG) {
 		std::time_t t = std::time(0);
 		std::tm    *localtime = std::localtime(&t);
@@ -67,7 +67,7 @@ void TintinReporter::debug(const std::string &message) {
 	}
 }
 
-void TintinReporter::error(const std::string &message) {
+void Tintin_reporter::error(const std::string &message) {
 	if (log_stream.is_open()) {
 		std::time_t t = std::time(0);
 		std::tm    *localtime = std::localtime(&t);
@@ -75,7 +75,7 @@ void TintinReporter::error(const std::string &message) {
 	}
 }
 
-void TintinReporter::info(const std::string &message) {
+void Tintin_reporter::info(const std::string &message) {
 	if (log_stream.is_open()) {
 		std::time_t t = std::time(0);
 		std::tm    *localtime = std::localtime(&t);

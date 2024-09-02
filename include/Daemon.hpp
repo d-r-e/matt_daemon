@@ -1,7 +1,7 @@
 #ifndef DAEMON_HPP
 #define DAEMON_HPP
 
-#include "TintinReporter.hpp"
+#include "Tintin_reporter.hpp"
 #include <algorithm>
 #include <arpa/inet.h>
 #include <array>
@@ -45,7 +45,7 @@ class Daemon {
 
   private:
 	unsigned int                 pid;
-	TintinReporter               reporter;
+	Tintin_reporter               reporter;
 	int                          server_fd;
 	int                          lock_fd;
 	int                          client_fds[MAX_CLIENTS + 1];

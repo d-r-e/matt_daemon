@@ -39,6 +39,7 @@ Daemon::Daemon(bool daemonize) {
 	signal(SIGTERM, Daemon::handle_signal);
 	signal(SIGINT, Daemon::handle_signal);
 	signal(SIGHUP, Daemon::handle_signal);
+	signal(SIGSTOP, Daemon::handle_signal);
 }
 
 Daemon::~Daemon() {
@@ -88,14 +89,16 @@ bool Daemon::check_requirements() {
 }
 
 void Daemon::handle_signal(int signal) {
-	TintinReporter reporter;
+	Tintin_reporter reporter;
 
-	if (signal == SIGTERM || signal == SIGINT) {
+	if (signal == SIGTERM || signal == SIGINT || signal == SIGSTOP) {
 		Daemon::instance->close_clients();
 		Daemon::instance->close_sockets();
 		std::filesystem::remove("/var/lock/matt_daemon.lock");
 		if (signal == SIGTERM)
 			reporter.info("[SIGTERM] Daemon stopped.");
+		else if (signal == SIGSTOP)
+			reporter.info("[SIGSTOP] Daemon stopped.");
 		else
 			reporter.info("[SIGINT] Daemon stopped.");
 		stop_requested = 1;

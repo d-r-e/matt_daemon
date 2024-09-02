@@ -8,12 +8,12 @@
 #include <iostream>
 #include <string>
 
-class TintinReporter {
+class Tintin_reporter {
   public:
-	TintinReporter();
-	~TintinReporter();
-	TintinReporter(const TintinReporter &);
-	TintinReporter &operator=(const TintinReporter &);
+	Tintin_reporter();
+	~Tintin_reporter();
+	Tintin_reporter(const Tintin_reporter &);
+	Tintin_reporter &operator=(const Tintin_reporter &);
 
 	void log(const std::string &message);
 	void debug(const std::string &message);
