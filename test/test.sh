@@ -1,7 +1,7 @@
 #!/bin/bash
 PROGRAM_NAME="Matt_daemon"
 DAEMON_BINARY="./bin/Matt_daemon"
-LOCK_FILE="/var/run/matt_daemon.lock"
+LOCK_FILE="/var/lock/matt_daemon.lock"
 LOG_DIR="/var/log/"
 LOG_FILE="${LOG_DIR}/matt_daemon.log"
 SOURCE_DIR="./src"
