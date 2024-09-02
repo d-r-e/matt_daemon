@@ -25,11 +25,14 @@ Daemon::Daemon(bool daemonize) {
 	instance = this;
 	pid = 0;
 	if (!this->check_requirements()) {
+		this->stop_requested = 1;
+
 		exit(EXIT_FAILURE);
 	}
 	if (daemonize) {
 		if (!this->daemonize()) {
 			std::cerr << "Error: Failed to daemonize." << std::endl;
+			this->stop_requested = 1;
 			exit(EXIT_FAILURE);
 		}
 	}
