@@ -153,7 +153,7 @@ check_max_clients() {
 }
 
 test_message_log(){
-    local string="echo $(date)"
+    local string="test-string"
     (echo $string; sleep .1; echo "quit") | nc localhost 4242
     sleep 1
     if grep -q "$string" "$LOG_FILE"; then
