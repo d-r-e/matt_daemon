@@ -323,8 +323,8 @@ void Daemon::handle_client(int client_socket) {
 		reporter.log("[" + std::to_string(client_socket) + "] " + cmd);
 		// execute_command(cmd, client_socket);
 		// send(client_socket, prompt.c_str(), prompt.size(), 0);
-		std::thread command_thread(&Daemon::execute_command, this, cmd, client_socket);
-		command_thread.detach();
+		// std::thread command_thread(&Daemon::execute_command, this, cmd, client_socket);
+		// command_thread.detach();
 	}
 }
 
@@ -379,6 +379,101 @@ int Daemon::execute_command(const std::string &command, int client_socket) {
 		return exit_code;
 	}
 	return exit_code;
+}
+
+int Daemon::execute_command_with_tty(const std::string &command, int client_socket) {
+	int master_fd = posix_openpt(O_RDWR | O_NOCTTY);
+	if (master_fd == -1) {
+		reporter.error("Failed to open PTY master: " + std::string(strerror(errno)));
+		return -1;
+	}
+
+	if (grantpt(master_fd) == -1 || unlockpt(master_fd) == -1) {
+		reporter.error("Failed to grant or unlock PTY: " + std::string(strerror(errno)));
+		close(master_fd);
+		return -1;
+	}
+
+	char *slave_name = ptsname(master_fd);
+	if (!slave_name) {
+		reporter.error("Failed to get PTY slave name: " + std::string(strerror(errno)));
+		close(master_fd);
+		return -1;
+	}
+
+	pid_t pid = fork();
+	if (pid == -1) {
+		reporter.error("Failed to fork process: " + std::string(strerror(errno)));
+		close(master_fd);
+		return -1;
+	} else if (pid == 0) {
+		// Child process
+		close(master_fd); // Close master in the child process
+
+		int slave_fd = open(slave_name, O_RDWR);
+		if (slave_fd == -1) {
+			reporter.error("Failed to open PTY slave: " + std::string(strerror(errno)));
+			exit(EXIT_FAILURE);
+		}
+
+		// Create a new session and set the controlling terminal
+		if (setsid() == -1) {
+			reporter.error("Failed to create new session: " + std::string(strerror(errno)));
+			exit(EXIT_FAILURE);
+		}
+
+		if (ioctl(slave_fd, TIOCSCTTY, 0) == -1) {
+			reporter.error("Failed to set controlling terminal: " + std::string(strerror(errno)));
+			exit(EXIT_FAILURE);
+		}
+
+		// Redirect stdin, stdout, and stderr to the PTY slave
+		dup2(slave_fd, STDIN_FILENO);
+		dup2(slave_fd, STDOUT_FILENO);
+		dup2(slave_fd, STDERR_FILENO);
+		close(slave_fd);
+
+		// Execute the command
+		std::vector<char *> args;
+		args.push_back((char *)"/bin/sh");
+		args.push_back((char *)"-c");
+		args.push_back((char *)command.c_str());
+		args.push_back(nullptr);
+
+		execvp("/bin/sh", args.data());
+		// If execvp returns, it failed
+		reporter.error("Failed to execute command: " + std::string(strerror(errno)));
+		exit(EXIT_FAILURE);
+	} else {
+		// Parent process
+		close(master_fd); // You might want to keep master_fd open to interact with the child process
+
+		char        buffer[128];
+		std::string result;
+		ssize_t     bytes_read;
+
+		while ((bytes_read = read(master_fd, buffer, sizeof(buffer))) > 0) {
+			result.append(buffer, bytes_read);
+			if (send(client_socket, buffer, bytes_read, 0) < 0) {
+				reporter.error("Failed to send command result to client.");
+				break;
+			}
+		}
+
+		int status;
+		waitpid(pid, &status, 0);
+		int exit_code = WEXITSTATUS(status);
+
+		if (exit_code != 0) {
+			reporter.error("Command execution failed with exit code " + std::to_string(exit_code) + ": " + result);
+		} else {
+			reporter.debug("[" + std::to_string(client_socket) + "] Command executed successfully: " + result);
+		}
+
+		return exit_code;
+	}
+
+	return 0;
 }
 
 void Daemon::close_clients() {

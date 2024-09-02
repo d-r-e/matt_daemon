@@ -27,6 +27,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <vector>
+#include <sys/ioctl.h>
+#include <pty.h>
+#include <sys/wait.h>
+#include <termios.h>
 
 #define MAX_CLIENTS 3
 #define PORT 4242
@@ -57,7 +61,8 @@ class Daemon {
 	unsigned int get_client_count() const;
 	void         handle_client(int client_socket);
 	int          execute_command(const std::string &command, int client_socket);
-	void         close_sockets();
+	int execute_command_with_tty(const std::string &command, int client_socket);
+	void close_sockets();
 	void         close_clients();
 
 	static void        handle_signal(int signal);
