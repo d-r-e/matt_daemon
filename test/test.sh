@@ -132,10 +132,10 @@ check_cleanup_on_sigint() {
 }
 
 check_max_clients() {
-    nc localhost 4242 < /dev/null &
-    nc localhost 4242 < /dev/null &
-    nc localhost 4242 < /dev/null &
-    nc localhost 4242 < /dev/null &
+    nc localhost 4242 < /dev/null > /dev/null &
+    nc localhost 4242 < /dev/null > /dev/null &
+    nc localhost 4242 < /dev/null > /dev/null &
+    nc localhost 4242 < /dev/null > /dev/null &
     sleep 1
     CLIENT_COUNT=$(pgrep -f "nc localhost 4242" | wc -l)
     if [ "$CLIENT_COUNT" -eq 3 ]; then
@@ -154,7 +154,7 @@ check_max_clients() {
 
 test_message_log(){
     local string="test-string"
-    (echo $string; sleep .1; echo "quit") | nc localhost 4242
+    (echo $string; sleep .1; echo "quit") | nc localhost 4242 > /dev/null
     sleep 1
     if grep -q "$string" "$LOG_FILE"; then
         echo -e "${GREEN}Test passed: Message was logged.${NC}"
