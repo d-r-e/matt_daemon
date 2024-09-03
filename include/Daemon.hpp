@@ -31,6 +31,7 @@
 #define MAX_CLIENTS 3
 #define PORT 4242
 #define UNSAFE 1
+#define QUIT_REQUESTED 1337
 
 class Daemon {
   public:

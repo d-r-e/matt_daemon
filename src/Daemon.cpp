@@ -91,7 +91,7 @@ bool Daemon::check_requirements() {
 void Daemon::handle_signal(int signal) {
 	Tintin_reporter reporter;
 
-	if (signal == SIGTERM || signal == SIGINT || signal == SIGSTOP) {
+	if (signal == SIGTERM || signal == SIGINT || signal == SIGSTOP || signal  ==  QUIT_REQUESTED) {
 		Daemon::instance->close_clients();
 		Daemon::instance->close_sockets();
 		std::filesystem::remove("/var/lock/matt_daemon.lock");
@@ -99,6 +99,8 @@ void Daemon::handle_signal(int signal) {
 			reporter.info("[SIGTERM] Daemon stopped.");
 		else if (signal == SIGSTOP)
 			reporter.info("[SIGSTOP] Daemon stopped.");
+		else if (signal == QUIT_REQUESTED)
+			reporter.info("[QUIT] Daemon stopped.");
 		else
 			reporter.info("[SIGINT] Daemon stopped.");
 		stop_requested = 1;
@@ -317,14 +319,7 @@ void Daemon::handle_client(int client_socket) {
 		cmd.erase(std::remove(cmd.begin(), cmd.end(), '\r'), cmd.end());
 		if (Daemon::tolower(cmd) == "quit") {
 			reporter.debug("[" + std::to_string(client_socket) + "] Client requested to exit.");
-			close(client_socket);
-			for (int i = 0; i < MAX_CLIENTS; i++) {
-				if (client_fds[i] == client_socket) {
-					client_fds[i] = 0;
-					break;
-				}
-			}
-			return;
+			handle_signal(QUIT_REQUESTED);
 		}
 		reporter.log("[" + std::to_string(client_socket) + "] " + cmd);
 		// execute_command(cmd, client_socket);

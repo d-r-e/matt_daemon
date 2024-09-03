@@ -2,7 +2,7 @@
 PROGRAM_NAME="Matt_daemon"
 DAEMON_BINARY="./bin/Matt_daemon"
 LOCK_FILE="/var/lock/matt_daemon.lock"
-LOG_DIR="/var/log/"
+LOG_DIR="/var/log/matt_daemon/"
 LOG_FILE="${LOG_DIR}/matt_daemon.log"
 SOURCE_DIR="./src"
 
@@ -160,6 +160,11 @@ test_message_log(){
         echo -e "${GREEN}Test passed: Message was logged.${NC}"
     else
         echo -e "${RED}Test failed: Message was not logged.${NC}"
+        exit 1
+    fi
+    sleep .5
+    if pgrep -x $DAEMON_BINARY > /dev/null; then
+        echo -e  "${RED}Test failed: Daemon is still running.${NC}"
         exit 1
     fi
 }

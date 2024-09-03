@@ -6,7 +6,7 @@
 #include <iostream>
 
 Tintin_reporter::Tintin_reporter() {
-	log_file = "/var/log/matt_daemon.log";
+	log_file = "/var/log/matt_daemon/matt_daemon.log";
 	open_log_file();
 }
 
